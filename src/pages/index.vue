@@ -3,43 +3,40 @@ defineOptions({
   name: 'IndexPage',
 })
 
-const name = $ref('')
+const exerciseList = [
+  {
+    name: '静态资源动态导入',
+    path: '/dynamic-resource-import',
+  },
+
+]
 
 const router = useRouter()
-function go() {
-  if (name)
-    router.push(`/hi/${encodeURIComponent(name)}`)
+
+function go(path: string) {
+  router.push(`/exercise${path}`)
 }
 </script>
 
 <template>
-  <div>
+  <div mx-a text-center>
     <div i-carbon-campsite text-4xl inline-block />
     <p>
       <a rel="noreferrer" href="https://github.com/antfu/vitesse-lite" target="_blank">
-        Vitesse Lite
+        Vitesse Lite Exercise
       </a>
     </p>
     <p>
       <em text-sm op75>Opinionated Vite Starter Template</em>
     </p>
 
-    <div py-4 />
-
-    <TheInput
-      v-model="name"
-      placeholder="What's your name?"
-      autocomplete="false"
-      @keydown.enter="go"
-    />
-
-    <div>
+    <div flex justify-between flex-wrap flex-1>
       <button
+        v-for="item in exerciseList" :key="item.name"
         class="m-3 text-sm btn"
-        :disabled="!name"
-        @click="go"
+        @click="go(item.path)"
       >
-        Go
+        {{ item.name }}
       </button>
     </div>
   </div>
