@@ -7,6 +7,7 @@ import Pages from 'vite-plugin-pages'
 import Components from 'unplugin-vue-components/vite'
 import AutoImport from 'unplugin-auto-import/vite'
 import UnoCSS from 'unocss/vite'
+// @ts-expect-error ts5 bug fix
 import VueMacros from 'unplugin-vue-macros/vite'
 import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
 

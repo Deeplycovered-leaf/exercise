@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import MyInput from './MyInput.vue'
+
 const inputValue = ref('')
 const inputRef = ref(null)
 </script>
