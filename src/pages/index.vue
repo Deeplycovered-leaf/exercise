@@ -8,7 +8,10 @@ const exerciseList = [
     name: '静态资源动态导入',
     path: '/dynamic-resource-import',
   },
-
+  {
+    name: 'UI组件封装',
+    path: '/ui-component',
+  },
 ]
 
 const router = useRouter()
@@ -30,10 +33,10 @@ function go(path: string) {
       <em text-sm op75>Opinionated Vite Starter Template</em>
     </p>
 
-    <div flex justify-between flex-wrap flex-1>
+    <div flex flex-wrap flex-1>
       <button
         v-for="item in exerciseList" :key="item.name"
-        class="m-3 text-sm btn"
+        class="m-3 text-md btn"
         @click="go(item.path)"
       >
         {{ item.name }}
