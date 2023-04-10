@@ -12,6 +12,10 @@ const exerciseList = [
     name: 'UI组件封装',
     path: '/ui-component',
   },
+  {
+    name: '音频可视化',
+    path: '/audio-visual',
+  },
 ]
 
 const router = useRouter()
