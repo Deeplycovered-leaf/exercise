@@ -16,6 +16,10 @@ const exerciseList = [
     name: '音频可视化',
     path: '/audio-visual',
   },
+  {
+    name: '九宫格',
+    path: '/sudoku',
+  },
 ]
 
 const router = useRouter()
