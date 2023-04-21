@@ -5,22 +5,26 @@ defineOptions({
 
 const exerciseList = [
   {
-    name: '静态资源动态导入',
-    path: '/dynamic-resource-import',
+    name: '字体阴影',
+    path: '/font-shadow',
   },
   {
-    name: 'UI组件封装',
-    path: '/ui-component',
+    name: '九宫格',
+    path: '/sudoku',
   },
   {
     name: '音频可视化',
     path: '/audio-visual',
   },
   {
-    name: '九宫格',
-    path: '/sudoku',
+    name: 'UI组件封装',
+    path: '/ui-component',
   },
-]
+  {
+    name: '静态资源动态导入',
+    path: '/dynamic-resource-import',
+  },
+].reverse()
 
 const router = useRouter()
 
