@@ -9,6 +9,7 @@ import AutoImport from 'unplugin-auto-import/vite'
 import UnoCSS from 'unocss/vite'
 // @ts-expect-error ts5 bug fix
 import VueMacros from 'unplugin-vue-macros/vite'
+import autoprefixer from 'autoprefixer'
 import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
 
 export default defineConfig({
@@ -16,6 +17,9 @@ export default defineConfig({
     alias: {
       '~/': `${path.resolve(__dirname, 'src')}/`,
     },
+  },
+  css: {
+    postcss: { plugins: [autoprefixer()] },
   },
   plugins: [
     VueMacros({
