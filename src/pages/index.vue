@@ -5,6 +5,10 @@ defineOptions({
 
 const exerciseList = [
   {
+    name: '无限评论',
+    path: '/finite-comment',
+  },
+  {
     name: '字体阴影',
     path: '/font-shadow',
   },
