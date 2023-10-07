@@ -1,5 +1,14 @@
 {
-  "cSpell.words": ["Vitesse"],
+  "cSpell.words": [
+    "antfu",
+    "iconify",
+    "pinia",
+    "taze",
+    "unocss",
+    "unplugin",
+    "Vitesse",
+    "vueuse"
+  ],
   "prettier.enable": false,
   "editor.codeActionsOnSave": {
     "source.fixAll.eslint": true
