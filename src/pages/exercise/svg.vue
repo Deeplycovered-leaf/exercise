@@ -13,9 +13,9 @@ onMounted(() => {
     },
     config: {
       // 节点的横向距离
-      dx: 200,
+      dx: 400,
       // 节点的纵向距离
-      dy: 170,
+      dy: 200,
       // svg的viewBox的宽度
       width: 0,
       // svg的viewBox的高度

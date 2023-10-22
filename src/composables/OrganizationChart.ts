@@ -10,7 +10,7 @@ export class OrganizationChart {
   gLinks: null | d3.Selection<SVGGElement, undefined, null, undefined>
   gNodes: null | d3.Selection<SVGGElement, undefined, null, undefined>
   tree: any
-  rootOfDown: any
+  data: any
   /**
  * Constructs a new instance of the TreeChart class.
  * @param options - The options for the TreeChart.
@@ -42,7 +42,7 @@ export class OrganizationChart {
     this.el = options.el
     this.nodeClickEvent = options.nodeClickEvent || function (e, d) {
       // eslint-disable-next-line no-alert
-      alert(d.name)
+      alert(d.fullName)
     }
     this.config = {
       dx: options.config.dx,
@@ -57,10 +57,10 @@ export class OrganizationChart {
     this.gLinks = null
     this.gNodes = null
     this.tree = null
-    this.rootOfDown = null
+    this.data = null
 
     this.drawChart({
-      type: 'fold',
+      type: 'all',
     })
   }
 
@@ -117,40 +117,41 @@ export class OrganizationChart {
         y0: 0,
       }
       // 设置根节点所在的位置（原点）
-      this.rootOfDown.x0 = 0
-      this.rootOfDown.y0 = 0
+      this.data.x0 = 0
+      this.data.y0 = 0
     }
 
-    const nodesOfDown = this.rootOfDown.descendants().reverse()
-    const linksOfDown = this.rootOfDown.links()
+    const nodesOfDown = this.data.descendants().reverse()
+    const linksOfDown = this.data.links()
 
-    this.tree(this.rootOfDown)
+    this.tree(this.data)
 
     const myTransition = this.svg?.transition().duration(500)
 
     /** *  绘制 root 子孙 ***/
-    const { node1Enter, node1 } = this.drawChildrenNode(nodesOfDown, source)
-
+    const { nodeEnter, node } = this.drawNode(nodesOfDown, source)
     // 增加展开按钮
-    this.drawNodeBtn(node1Enter, 'child')
+    this.drawNodeBtn(nodeEnter, 'child')
+    const { secretaryGroup } = this.drawAssistant(nodeEnter)
+    this.drawAssistantLink(secretaryGroup)
 
-    const childLink = this.drawLink(linksOfDown, source, 'child')
+    const { link, linkEnter } = this.drawLink(linksOfDown, source, 'child')
 
     // 有元素update更新和元素新增enter的时候
-    this.childrenNodeUpdating(node1, node1Enter, myTransition, source, childLink.link, childLink.linkEnter)
+    this.nodeUpdating(node, nodeEnter, myTransition, source, link, linkEnter)
 
-    this.rootOfDown.eachBefore((d: { x0: any; x: any; y0: any; y: any }) => {
+    this.data.eachBefore((d: { x0: any; x: any; y0: any; y: any }) => {
       d.x0 = d.x
       d.y0 = d.y
     })
   }
 
   private setExpandState(options: { type: any }) {
-    this.rootOfDown = d3.hierarchy(this.originTreeData, d => d.children)
+    this.data = d3.hierarchy(this.originTreeData, d => d.children)
 
-    this.tree(this.rootOfDown)
+    this.tree(this.data)
 
-    ;[this.rootOfDown.descendants()].forEach((nodes) => {
+    ;[this.data.descendants()].forEach((nodes) => {
       nodes.forEach((node: { _children: any; children: null; depth: any }) => {
         node._children = node.children || null
         if (options.type === 'all') {
@@ -236,9 +237,9 @@ export class OrganizationChart {
       .attr('fill', '#215af3') // 箭头颜色
   }
 
-  private childrenNodeUpdating(node1: d3.Selection<d3.BaseType, unknown, SVGGElement, undefined> | undefined, node1Enter: d3.Selection<SVGGElement, unknown, SVGGElement, undefined> | undefined, myTransition: d3.Transition<SVGSVGElement, undefined, null, undefined> | undefined, source: { x0: any; y0: any; x?: any; y?: any } | undefined, link1: d3.Selection<d3.BaseType, unknown, SVGGElement, undefined> | undefined, link1Enter: d3.Selection<SVGPathElement, unknown, SVGGElement, undefined> | undefined) {
-    node1
-      ?.merge(node1Enter as any)
+  private nodeUpdating(node: d3.Selection<d3.BaseType, unknown, SVGGElement, undefined> | undefined, nodeEnter: d3.Selection<SVGGElement, unknown, SVGGElement, undefined> | undefined, myTransition: d3.Transition<SVGSVGElement, undefined, null, undefined> | undefined, source: { x0: any; y0: any; x?: any; y?: any } | undefined, link1: d3.Selection<d3.BaseType, unknown, SVGGElement, undefined> | undefined, link1Enter: d3.Selection<SVGPathElement, unknown, SVGGElement, undefined> | undefined) {
+    node
+      ?.merge(nodeEnter as any)
       .transition(myTransition as any)
       .attr('transform', (d: any) => {
         return `translate(${d.x},${d.y})`
@@ -247,7 +248,7 @@ export class OrganizationChart {
       .attr('stroke-opacity', 1)
 
     // 有元素消失时
-    node1
+    node
       ?.exit()
       .transition(myTransition as any)
       .remove()
@@ -276,15 +277,30 @@ export class OrganizationChart {
         }
         return this.computeRightAnglePath(o)
       })
+
+    const expandButtonsSelection = d3.selectAll('g.expandBtn')
+
+    expandButtonsSelection.select('text')
+      .transition()
+      .text((d: any) => {
+        return d.children ? '-' : '+'
+      })
+
+    // TODO：如果按钮展开则这个按钮节点的下一个兄弟节点的秘书节点展开，否则不展开
+    d3.selectAll('g.secretary-group')
+      .transition(myTransition as any)
+      .style('opacity', (d: any) => {
+        return d.children ? 1 : 0
+      })
   }
 
-  private drawChildrenNode(nodesOfDown: any, source: { x0: any; y0: any; x?: any; y?: any } | undefined) {
-    const node1 = this.gNodes?.selectAll('g.childrenNodeGroup')
-      .data(nodesOfDown, (d: any) => {
+  private drawNode(data: any, source: { x0: any; y0: any; x?: any; y?: any } | undefined) {
+    const node = this.gNodes?.selectAll('g.childrenNodeGroup')
+      .data(data, (d: any) => {
         return d.data.id
       })
 
-    const node1Enter = node1?.enter()
+    const nodeEnter = node?.enter()
       .append('g')
       .attr('class', 'childrenNodeGroup')
       .attr('transform', () => {
@@ -295,11 +311,11 @@ export class OrganizationChart {
       .style('cursor', 'pointer')
 
     // 外层的矩形框
-    node1Enter
+    nodeEnter
       ?.append('rect')
       .attr('width', (d: any) => {
         if (d.depth === 0)
-          return (d.data.name.length + 2) * 16
+          return (d.data.fullName.length + 2) * 16
 
         return this.config.rectWidth
       })
@@ -311,7 +327,7 @@ export class OrganizationChart {
       })
       .attr('x', (d: any) => {
         if (d.depth === 0)
-          return (-(d.data.name.length + 2) * 16) / 2
+          return (-(d.data.fullName.length + 2) * 16) / 2
 
         return -this.config.rectWidth / 2
       })
@@ -340,7 +356,7 @@ export class OrganizationChart {
       })
 
     // 文本主标题
-    node1Enter?.append('text')
+    nodeEnter?.append('text')
       .attr('class', 'main-title')
       .attr('x', () => {
         return 0
@@ -356,12 +372,12 @@ export class OrganizationChart {
       })
       .text((d: any) => {
         if (d.depth === 0) {
-          return d.data.name
+          return d.data.fullName
         }
         else {
-          return d.data.name.length > 11
-            ? d.data.name.substring(0, 11)
-            : d.data.name
+          return d.data.fullName.length > 11
+            ? d.data.fullName.substring(0, 11)
+            : d.data.fullName
         }
       })
       .attr('fill', (d: any) => {
@@ -374,7 +390,7 @@ export class OrganizationChart {
       .style('font-family', '黑体')
       .style('font-weight', 'bold')
     // 副标题
-    node1Enter
+    nodeEnter
       ?.append('text')
       .attr('class', 'sub-title')
       .attr('x', () => {
@@ -388,7 +404,7 @@ export class OrganizationChart {
       })
       .text((d: any) => {
         if (d.depth !== 0) {
-          const subTitle = d.data.name.substring(11)
+          const subTitle = d.data.fullName.substring(11)
           if (subTitle.length > 10)
             return `${subTitle.substring(0, 10)}...`
 
@@ -399,33 +415,15 @@ export class OrganizationChart {
       .style('font-family', '黑体')
       .style('font-weight', 'bold')
 
-    // 控股比例
-    node1Enter
-      ?.append('text')
-      .attr('class', 'percent')
-      .attr('x', () => {
-        return 12
-      })
-      .attr('y', () => {
-        return -45
-      })
-      .text((d: any) => {
-        if (d.depth !== 0)
-          return d.data.percent
-      })
-      .attr('fill', '#000000')
-      .style('font-family', '黑体')
-      .style('font-size', () => 14)
-
-    return { node1Enter, node1 }
+    return { nodeEnter, node }
   }
 
-  private drawLink(linksOfDown: any, source: { x0: any; y0: any; x?: any; y?: any } | undefined, role: 'parent' | 'child') {
+  private drawLink(data: any, source: { x0: any; y0: any; x?: any; y?: any } | undefined, role: 'parent' | 'child') {
     const className = role === 'parent' ? 'patentsLink' : 'childLink'
     const arrowDirection = role === 'parent' ? '#markerOfUp' : '#markerOfDown'
 
     const link = this.gLinks!.selectAll(`path.${className}`)
-      .data(linksOfDown, (d: any) => d.target.data.id)
+      .data(data, (d: any) => d.target.data.id)
 
     const linkEnter = link
       ?.enter()
@@ -450,6 +448,122 @@ export class OrganizationChart {
       .attr('marker-end', `url(${arrowDirection})`)
 
     return { link, linkEnter }
+  }
+
+  drawAssistant(nodeEnter: d3.Selection<SVGGElement, unknown, SVGGElement, undefined> | undefined) {
+    // 在秘书节点上添加特殊样式和矩形框
+    const secretaryGroup = nodeEnter!.filter((d: any) => {
+      return d.data.secretary
+    }).append('g').attr('class', 'secretary-group').style('user-select', 'none').attr('cursor', 'auto')
+
+    secretaryGroup.append('rect')
+      .attr('class', 'secretary')
+      .attr('transform', (d: any) => {
+        if (d.depth !== 0) {
+          const x = this.config.dx / 2 // 向右偏移100个单位，可以根据需要调整
+          const y = (d.data.children?.length > 1) ? this.config.dy / 4 : this.config.dy / 2
+          return `translate(${x},${y})`
+        }
+
+        // 如果秘书节点的深度为0（顶级），不需要向右移动
+        return `translate(${this.config.dx / 2 - 52},${this.config.dy / 4 - 20})`
+      })
+      .attr('width', () => {
+        return this.config.rectWidth
+      })
+      .attr('height', () => {
+        return this.config.rectHeight
+      })
+      .attr('x', (d: any) => {
+        if (d.depth === 0)
+          return (-(d.data.secretary.name.length + 2) * 16) / 2
+
+        return -this.config.rectWidth / 2
+      })
+      .attr('y', (d: any) => {
+        if (d.depth === 0)
+          return -15
+
+        return -this.config.rectHeight / 2
+      })
+      .attr('rx', 5)
+      .attr('stroke-width', 1)
+      .attr('stroke', () => {
+        return '#7A9EFF'
+      })
+      .attr('fill', () => {
+        return '#FFFFFF'
+      })
+
+    secretaryGroup.append('text')
+      .attr('class', 'secretary-name')
+      .attr('x', () => {
+        return this.config.dx / 2
+      })
+      .attr('y', (d: any) => {
+        const isMultipleChildren = d.data.children?.length > 1
+        const dy = this.config.dy
+
+        if (d.depth === 0)
+          return (isMultipleChildren ? dy / 2 : dy / 4)
+
+        return isMultipleChildren ? dy / 4 - 10 : dy / 2 - 10
+      })
+      .attr('text-anchor', () => {
+        return 'middle'
+      })
+      .text((d: any) => {
+        if (d.depth === 0) {
+          return d.data.secretary.name
+        }
+        else {
+          return d.data.secretary.name.length > 11
+            ? d.data.secretary.name.substring(0, 11)
+            : d.data.secretary.name
+        }
+      })
+      .attr('fill', () => {
+        return '#000000'
+      })
+      .style('font-size', () => (14))
+      .style('font-family', '黑体')
+      .style('font-weight', 'bold')
+
+    return { secretaryGroup }
+  }
+
+  drawAssistantLink(secretaryGroup: d3.Selection<SVGGElement, unknown, SVGGElement, undefined> | undefined) {
+    secretaryGroup?.append('path')
+      .attr('class', 'assistant-link')
+      .attr('d', (d: any) => {
+        const o = {
+          source: {
+            x: 0,
+            y: this.config.dy / 2,
+          },
+          target: {
+            x: (this.config.dx / 2) - this.config.rectWidth / 2,
+            y: this.config.dy / 2,
+          },
+        }
+
+        if (d.depth !== 0 && d.data.children?.length > 1) {
+          o.source.y = this.config.dy / 2.5
+          o.target.y = this.config.dy / 2.5
+          return this.computeRightAnglePath(o)
+        }
+
+        if (d.depth === 0) {
+          o.source.y = this.config.dy / 4
+          o.target.y = this.config.dy / 4
+          return this.computeRightAnglePath(o)
+        }
+
+        return this.computeRightAnglePath(o)
+      })
+      .attr('fill', 'none')
+      .attr('stroke', '#7A9EFF')
+      .attr('stroke-width', 1)
   }
 
   private drawNodeBtn(node: d3.Selection<SVGGElement, unknown, SVGGElement, undefined> | undefined, role: 'parent' | 'child') {
@@ -520,52 +634,334 @@ export class OrganizationChart {
 }
 
 export const mockData = {
+  id: '96240625-934F-490B-8AA6-0BC775B18468',
+  parentId: '-1',
+  fullName: '正睿集团',
+  secretary: {
+    name: '秘书',
+  },
+  enCode: 'jinrui.com',
+  enabledMark: 1,
+  creatorTime: 1542620132000,
+  description: null,
+  hasChildren: true,
+  children: [
+    {
+      id: '421308919646802693',
+      parentId: '96240625-934F-490B-8AA6-0BC775B18468',
+      fullName: '广州金睿智能科技有限公司',
+      secretary: {
+        name: '秘书',
+      },
+      enCode: null,
+      enabledMark: 1,
+      creatorTime: 1682584276000,
+      description: '广州金睿智能科技有限公司',
+      hasChildren: true,
+      children: [
+        {
+          id: '421309056116871941',
+          parentId: '421308919646802693',
+          fullName: '数字研发部',
+          enCode: null,
+          enabledMark: 1,
+          secretary: {
+            name: '秘书',
+          },
+          creatorTime: 1682584309000,
+          description: '<p>数字研发部</p>',
+          hasChildren: true,
+          children: [
+            {
+              id: '421309249956631301',
+              parentId: '421309056116871941',
+              fullName: '产品部',
+              enCode: null,
+              enabledMark: 1,
+              creatorTime: 1682584355000,
+              description: '产品部',
+              hasChildren: false,
+              children: [],
+              sortCode: 0,
+              manager: null,
+              managerName: null,
+              managerHeadIcon: null,
+              managerMobilePhone: null,
+              managerEntryDate: null,
+              managerPositionManagementId: null,
+              managerPositionManagementName: null,
+              managerPositionRankClassId: null,
+              managerPositionRankClassName: null,
+              staffSize: 20,
+              totalStaffSize: 20,
+              activeStaff: 4,
+              totalActiveStaf: 4,
+              category: 'department',
+              cooperativeList: [],
+              hierarchy: 3,
+              companyId: '96240625-934F-490B-8AA6-0BC775B18468',
+            },
+            {
+              id: '421309163767878405',
+              parentId: '421309056116871941',
+              fullName: '技术部',
+              enCode: null,
+              enabledMark: 1,
+              creatorTime: 1682584334000,
+              description: '<p>技术部</p>',
+              hasChildren: false,
+              children: [],
+              sortCode: 0,
+              manager: '421311638319158021',
+              managerName: '龙志强',
+              managerHeadIcon: '/api/file/Image/userAvatar/20230512_426635526712353029.jpg',
+              managerMobilePhone: '18379152911',
+              managerEntryDate: null,
+              managerPositionManagementId: '',
+              managerPositionManagementName: null,
+              managerPositionRankClassId: null,
+              managerPositionRankClassName: null,
+              staffSize: 80,
+              totalStaffSize: 80,
+              activeStaff: 9,
+              totalActiveStaf: 9,
+              category: 'department',
+              cooperativeList: [],
+              hierarchy: 3,
+              companyId: '96240625-934F-490B-8AA6-0BC775B18468',
+            },
+          ],
+          sortCode: 0,
+          manager: '421310043376341765',
+          managerName: '邱红建',
+          managerHeadIcon: '/api/file/Image/userAvatar/001.png',
+          managerMobilePhone: '13098889950',
+          managerEntryDate: null,
+          managerPositionManagementId: '',
+          managerPositionManagementName: null,
+          managerPositionRankClassId: null,
+          managerPositionRankClassName: null,
+          staffSize: 100,
+          totalStaffSize: 200,
+          activeStaff: 1,
+          totalActiveStaf: 14,
+          category: 'department',
+          cooperativeList: [],
+          hierarchy: 2,
+          companyId: '96240625-934F-490B-8AA6-0BC775B18468',
+        },
+        {
+          id: '421311147799499525',
+          parentId: '421308919646802693',
+          fullName: '销售部',
+          enCode: null,
+          enabledMark: 1,
+          creatorTime: 1682584807000,
+          description: '<p>销售部</p>',
+          hasChildren: true,
+          children: [
+            {
+              id: '421659920828487429',
+              parentId: '421311147799499525',
+              fullName: '销售二部',
+              enCode: null,
+              enabledMark: 1,
+              creatorTime: 1682667961000,
+              description: '<p>0</p>',
+              hasChildren: false,
+              children: [],
+              sortCode: 0,
+              manager: 'admin',
+              managerName: '管理员',
+              managerHeadIcon: '/api/file/Image/userAvatar/20230828_465806679263455173.jpeg',
+              managerMobilePhone: '15626251595',
+              managerEntryDate: null,
+              managerPositionManagementId: '',
+              managerPositionManagementName: null,
+              managerPositionRankClassId: null,
+              managerPositionRankClassName: null,
+              staffSize: 10,
+              totalStaffSize: 10,
+              activeStaff: 0,
+              totalActiveStaf: 0,
+              category: 'department',
+              cooperativeList: [],
+              hierarchy: 3,
+              companyId: '96240625-934F-490B-8AA6-0BC775B18468',
+            },
+            {
+              id: '421659848002787077',
+              parentId: '421311147799499525',
+              fullName: '销售一部',
+              enCode: null,
+              enabledMark: 1,
+              creatorTime: 1682667944000,
+              description: '<p>销售一部</p>',
+              hasChildren: false,
+              children: [],
+              sortCode: 10,
+              manager: '421660150986725125',
+              managerName: '张三',
+              managerHeadIcon: '/api/file/Image/userAvatar/001.png',
+              managerMobilePhone: '13800138001',
+              managerEntryDate: null,
+              managerPositionManagementId: '424479261190020421',
+              managerPositionManagementName: '销售总监',
+              managerPositionRankClassId: '421318822063002373',
+              managerPositionRankClassName: 'M5',
+              staffSize: 10,
+              totalStaffSize: 10,
+              activeStaff: 2,
+              totalActiveStaf: 2,
+              category: 'department',
+              cooperativeList: [],
+              hierarchy: 3,
+              companyId: '96240625-934F-490B-8AA6-0BC775B18468',
+            },
+          ],
+          sortCode: 1,
+          manager: '421660150986725125',
+          managerName: '张三',
+          managerHeadIcon: '/api/file/Image/userAvatar/001.png',
+          managerMobilePhone: '13800138001',
+          managerEntryDate: null,
+          managerPositionManagementId: '424479261190020421',
+          managerPositionManagementName: '销售总监',
+          managerPositionRankClassId: '421318822063002373',
+          managerPositionRankClassName: 'M5',
+          staffSize: 1000,
+          totalStaffSize: 1020,
+          activeStaff: 1,
+          totalActiveStaf: 3,
+          category: 'department',
+          cooperativeList: [],
+          hierarchy: 2,
+          companyId: '96240625-934F-490B-8AA6-0BC775B18468',
+        },
+      ],
+      sortCode: 0,
+      manager: '421311275683828485',
+      managerName: '李应海',
+      managerHeadIcon: '/api/file/Image/userAvatar/001.png',
+      managerMobilePhone: '18923090924',
+      managerEntryDate: null,
+      managerPositionManagementId: '',
+      managerPositionManagementName: null,
+      managerPositionRankClassId: null,
+      managerPositionRankClassName: null,
+      staffSize: 1000,
+      totalStaffSize: 2230,
+      activeStaff: 3,
+      totalActiveStaf: 5,
+      category: 'company',
+      cooperativeList: [
+        {
+          id: '421321229404754693',
+          parentId: '421308919646802693',
+          fullName: '行政部',
+          enCode: null,
+          enabledMark: 1,
+          creatorTime: 1682587211000,
+          description: '行政部',
+          hasChildren: false,
+          children: [],
+          sortCode: 3,
+          manager: null,
+          managerName: null,
+          managerHeadIcon: null,
+          managerMobilePhone: null,
+          managerEntryDate: null,
+          managerPositionManagementId: null,
+          managerPositionManagementName: null,
+          managerPositionRankClassId: null,
+          managerPositionRankClassName: null,
+          staffSize: 10,
+          totalStaffSize: 10,
+          activeStaff: 0,
+          totalActiveStaf: 0,
+          category: 'cooperative',
+          cooperativeList: [],
+          hierarchy: 2,
+          companyId: '96240625-934F-490B-8AA6-0BC775B18468',
+        },
+      ],
+      hierarchy: 1,
+      companyId: '96240625-934F-490B-8AA6-0BC775B18468',
+    },
+  ],
+  sortCode: 0,
+  manager: '421311275683828485',
+  managerName: '李应海',
+  managerHeadIcon: '/api/file/Image/userAvatar/001.png',
+  managerMobilePhone: '18923090924',
+  managerEntryDate: null,
+  managerPositionManagementId: '',
+  managerPositionManagementName: null,
+  managerPositionRankClassId: null,
+  managerPositionRankClassName: null,
+  staffSize: 1,
+  totalStaffSize: 2231,
+  activeStaff: 6,
+  totalActiveStaf: 9,
+  category: 'company',
+  cooperativeList: [],
+  hierarchy: 0,
+  companyId: '-1',
+}
+
+export const mockData1 = {
   id: 'abc1005',
   // 根节点名称
-  name: '山东吠舍科技有限责任公司',
-  secretary: '秘书',
+  fullName: '山东吠舍科技有限责任公司',
+  secretary: {
+    name: '秘书',
+  },
   // 子节点列表
   children: [
     {
       id: 'abc1006',
-      name: '山东第一首陀罗科技服务有限公司',
+      fullName: '山东第一首陀罗科技服务有限公司',
       percent: '100%',
     },
     {
       id: 'abc1007',
-      name: '山东第二首陀罗程技术有限公司',
+      fullName: '山东第二首陀罗程技术有限公司',
       percent: '100%',
     },
     {
       id: 'abc1008',
-      name: '山东第三首陀罗光伏材料有限公司',
+      fullName: '山东第三首陀罗光伏材料有限公司',
       percent: '100%',
     },
     {
       id: 'abc1009',
-      name: '山东第四首陀罗科技发展有限公司',
+      fullName: '山东第四首陀罗科技发展有限公司',
       percent: '100%',
-      secretary: '秘书',
+      secretary: {
+        name: '秘书',
+      },
       children: [
         {
           id: 'abc1010',
-          name: '山东第一达利特瑞利分析仪器有限公司',
+          fullName: '山东第一达利特瑞利分析仪器有限公司',
           percent: '100%',
-          secretary: '秘书',
+          secretary: {
+            name: '秘书',
+          },
           children: [
             {
               id: 'abc1011',
-              name: '山东瑞利的子公司一',
+              fullName: '山东瑞利的子公司一',
               percent: '80%',
             },
             {
               id: 'abc1012',
-              name: '山东瑞利的子公司二',
+              fullName: '山东瑞利的子公司二',
               percent: '90%',
             },
             {
               id: 'abc1013',
-              name: '山东瑞利的子公司三',
+              fullName: '山东瑞利的子公司三',
               percent: '100%',
             },
           ],
@@ -574,22 +970,22 @@ export const mockData = {
     },
     {
       id: 'abc1014',
-      name: '山东第五首陀罗电工科技有限公司',
+      fullName: '山东第五首陀罗电工科技有限公司',
       percent: '100%',
       children: [
         {
           id: 'abc1015',
-          name: '山东第二达利特低自动化设备有限公司',
+          fullName: '山东第二达利特低自动化设备有限公司',
           percent: '100%',
           children: [
             {
               id: 'abc1016',
-              name: '山东敬业的子公司一',
+              fullName: '山东敬业的子公司一',
               percent: '100%',
             },
             {
               id: 'abc1017',
-              name: '山东敬业的子公司二',
+              fullName: '山东敬业的子公司二',
               percent: '90%',
             },
           ],
@@ -598,34 +994,14 @@ export const mockData = {
     },
     {
       id: 'abc1020',
-      name: '山东第六首陀罗分析仪器(集团)有限责任公司',
+      fullName: '山东第六首陀罗分析仪器(集团)有限责任公司',
       percent: '100%',
       children: [
         {
           id: 'abc1021',
-          name: '山东第三达利特分气体工业有限公司',
+          fullName: '山东第三达利特分气体工业有限公司',
         },
       ],
-    },
-  ],
-  // 父节点列表
-  parents: [
-    {
-      id: 'abc2001',
-      name: '山东刹帝利集团有限责任公司',
-      percent: '60%',
-      parents: [
-        {
-          id: 'abc2000',
-          name: '山东婆罗门集团有限公司',
-          percent: '100%',
-        },
-      ],
-    },
-    {
-      id: 'abc2002',
-      name: '吴小远',
-      percent: '40%',
     },
   ],
 }
