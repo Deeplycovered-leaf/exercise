@@ -11,7 +11,6 @@ export class OrganizationChart {
   gNodes: null | d3.Selection<SVGGElement, undefined, null, undefined>
   tree: any
   rootOfDown: any
-  rootOfUp: any
   /**
  * Constructs a new instance of the TreeChart class.
  * @param options - The options for the TreeChart.
@@ -59,7 +58,6 @@ export class OrganizationChart {
     this.gNodes = null
     this.tree = null
     this.rootOfDown = null
-    this.rootOfUp = null
 
     this.drawChart({
       type: 'fold',
@@ -111,13 +109,48 @@ export class OrganizationChart {
     return container
   }
 
-  private setExpandState(options: { type: any }) {
-    this.rootOfDown = d3.hierarchy(this.originTreeData, d => d.children)
-    this.rootOfUp = d3.hierarchy(this.originTreeData, d => d.parents)
+  // 更新数据
+  update(source?: { x0: any; y0: any; x?: any; y?: any } | undefined) {
+    if (!source) {
+      source = {
+        x0: 0,
+        y0: 0,
+      }
+      // 设置根节点所在的位置（原点）
+      this.rootOfDown.x0 = 0
+      this.rootOfDown.y0 = 0
+    }
+
+    const nodesOfDown = this.rootOfDown.descendants().reverse()
+    const linksOfDown = this.rootOfDown.links()
 
     this.tree(this.rootOfDown)
 
-    ;[this.rootOfDown.descendants(), this.rootOfUp.descendants()].forEach((nodes) => {
+    const myTransition = this.svg?.transition().duration(500)
+
+    /** *  绘制 root 子孙 ***/
+    const { node1Enter, node1 } = this.drawChildrenNode(nodesOfDown, source)
+
+    // 增加展开按钮
+    this.drawNodeBtn(node1Enter, 'child')
+
+    const childLink = this.drawLink(linksOfDown, source, 'child')
+
+    // 有元素update更新和元素新增enter的时候
+    this.childrenNodeUpdating(node1, node1Enter, myTransition, source, childLink.link, childLink.linkEnter)
+
+    this.rootOfDown.eachBefore((d: { x0: any; x: any; y0: any; y: any }) => {
+      d.x0 = d.x
+      d.y0 = d.y
+    })
+  }
+
+  private setExpandState(options: { type: any }) {
+    this.rootOfDown = d3.hierarchy(this.originTreeData, d => d.children)
+
+    this.tree(this.rootOfDown)
+
+    ;[this.rootOfDown.descendants()].forEach((nodes) => {
       nodes.forEach((node: { _children: any; children: null; depth: any }) => {
         node._children = node.children || null
         if (options.type === 'all') {
@@ -201,255 +234,6 @@ export class OrganizationChart {
       .append('path')
       .attr('d', 'M0,-5L10,0L0,5') // 箭头的路径
       .attr('fill', '#215af3') // 箭头颜色
-  }
-
-  // 更新数据
-  update(source?: { x0: any; y0: any; x?: any; y?: any } | undefined) {
-    if (!source) {
-      source = {
-        x0: 0,
-        y0: 0,
-      }
-      // 设置根节点所在的位置（原点）
-      this.rootOfDown.x0 = 0
-      this.rootOfDown.y0 = 0
-      this.rootOfUp.x0 = 0
-      this.rootOfUp.y0 = 0
-    }
-
-    const nodesOfDown = this.rootOfDown.descendants().reverse()
-    const linksOfDown = this.rootOfDown.links()
-    const nodesOfUp = this.rootOfUp.descendants().reverse()
-    const linksOfUp = this.rootOfUp.links()
-
-    this.tree(this.rootOfDown)
-    this.tree(this.rootOfUp)
-
-    const myTransition = this.svg?.transition().duration(500)
-
-    /** *  绘制 root 子孙 ***/
-    const { node1Enter, node1 } = this.drawChildrenNode(nodesOfDown, source)
-
-    // 增加展开按钮
-    this.drawNodeBtn(node1Enter, 'child')
-
-    const childLink = this.drawLink(linksOfDown, source, 'child')
-
-    // 有元素update更新和元素新增enter的时候
-    this.childrenNodeUpdating(node1, node1Enter, myTransition, source, childLink.link, childLink.linkEnter)
-
-    /** *  绘制 root 祖先  ***/
-    const { node2Enter, node2 } = this.drawParentsNode(nodesOfUp, source)
-
-    // 增加展开按钮
-    this.drawNodeBtn(node2Enter, 'parent')
-
-    const parentLink = this.drawLink(linksOfUp, source, 'parent')
-
-    // 有元素update更新和元素新增enter的时候
-    this.parentsNodeUpdating(node2, node2Enter, myTransition, source, parentLink.link, parentLink.linkEnter)
-
-    this.rootOfDown.eachBefore((d: { x0: any; x: any; y0: any; y: any }) => {
-      d.x0 = d.x
-      d.y0 = d.y
-    })
-    this.rootOfUp.eachBefore((d: { x0: any; x: any; y0: any; y: any }) => {
-      d.x0 = d.x
-      d.y0 = d.y
-    })
-  }
-
-  private parentsNodeUpdating(node2: d3.Selection<d3.BaseType, unknown, SVGGElement, undefined> | undefined, node2Enter: d3.Selection<SVGGElement, unknown, SVGGElement, undefined> | undefined, myTransition: d3.Transition<SVGSVGElement, undefined, null, undefined> | undefined, source: { x0: any; y0: any; x?: any; y?: any } | undefined, link2: d3.Selection<d3.BaseType, unknown, SVGGElement, undefined>, link2Enter: d3.Selection<SVGPathElement, unknown, SVGGElement, undefined>) {
-    node2!
-      .merge(node2Enter as any)
-      .transition(myTransition as any)
-      .attr('transform', (d: any) => {
-        return `translate(${d.x},${d.y})`
-      })
-      .attr('fill-opacity', 1)
-      .attr('stroke-opacity', 1)
-
-    // 有元素消失时
-    node2!
-      .exit()
-      .transition(myTransition as any)
-      .remove()
-      .attr('transform', () => {
-        return `translate(${source?.x0},${source?.y0})`
-      })
-      .attr('fill-opacity', 0)
-      .attr('stroke-opacity', 0)
-
-    link2.merge(link2Enter as any).transition(myTransition as any).attr('d', this.computeRightAnglePath)
-
-    link2
-      .exit()
-      .transition(myTransition as any)
-      .remove()
-      .attr('d', () => {
-        const o = {
-          source: {
-            x: source?.x,
-            y: source?.y,
-          },
-          target: {
-            x: source?.x,
-            y: source?.y,
-          },
-        }
-        return this.computeRightAnglePath(o)
-      })
-
-    // node数据改变的时候更改一下加减号
-    const expandButtonsSelection = d3.selectAll('g.expandBtn')
-
-    expandButtonsSelection.select('text').transition().text((d: any) => {
-      return d.children ? '-' : '+'
-    })
-  }
-
-  private drawParentsNode(nodesOfUp: any, source: { x0: any; y0: any; x?: any; y?: any } | undefined) {
-    nodesOfUp.forEach((node: { y: number }) => {
-      node.y = -node.y
-    })
-
-    const node2 = this.gNodes
-      ?.selectAll('g.nodeOfUpItemGroup')
-      .data(nodesOfUp, (d: any) => {
-        return d.data.id
-      })
-
-    const node2Enter = node2
-      ?.enter()
-      .append('g')
-      .attr('class', 'nodeOfUpItemGroup')
-      .attr('transform', () => {
-        return `translate(${source?.x0},${source?.y0})`
-      })
-      .attr('fill-opacity', 0)
-      .attr('stroke-opacity', 0)
-      .style('cursor', 'pointer')
-
-    // 外层的矩形框
-    node2Enter!.append('rect')
-      .attr('width', (d: any) => {
-        if (d.depth === 0)
-          return (d.data.name.length + 2) * 16
-
-        return this.config.rectWidth
-      })
-      .attr('height', (d: any) => {
-        if (d.depth === 0)
-          return 30
-
-        return this.config.rectHeight
-      })
-      .attr('x', (d: any) => {
-        if (d.depth === 0)
-          return (-(d.data.name.length + 2) * 16) / 2
-
-        return -this.config.rectWidth / 2
-      })
-      .attr('y', (d: any) => {
-        if (d.depth === 0)
-          return -15
-
-        return -this.config.rectHeight / 2
-      })
-      .attr('rx', 5)
-      .attr('stroke-width', 1)
-      .attr('stroke', (d: any) => {
-        if (d.depth === 0)
-          return '#5682ec'
-
-        return '#7A9EFF'
-      })
-      .attr('fill', (d: any) => {
-        if (d.depth === 0)
-          return '#7A9EFF'
-
-        return '#FFFFFF'
-      })
-      .on('click', (e: Event, d: any) => {
-        this.nodeClickEvent(e, d)
-      })
-    // 文本主标题
-    node2Enter!.append('text')
-      .attr('class', 'main-title')
-      .attr('x', () => {
-        return 0
-      })
-      .attr('y', (d: any) => {
-        if (d.depth === 0)
-          return 5
-
-        return -14
-      })
-      .attr('text-anchor', () => {
-        return 'middle'
-      })
-      .text((d: any) => {
-        if (d.depth === 0) {
-          return d.data.name
-        }
-        else {
-          return d.data.name.length > 11
-            ? d.data.name.substring(0, 11)
-            : d.data.name
-        }
-      })
-      .attr('fill', (d: any) => {
-        if (d.depth === 0)
-          return '#FFFFFF'
-
-        return '#000000'
-      })
-      .style('font-size', (d: any) => (d.depth === 0 ? 16 : 14))
-      .style('font-family', '黑体')
-      .style('font-weight', 'bold')
-    // 副标题
-    node2Enter!.append('text')
-      .attr('class', 'sub-title')
-      .attr('x', () => {
-        return 0
-      })
-      .attr('y', () => {
-        return 5
-      })
-      .attr('text-anchor', () => {
-        return 'middle'
-      })
-      .text((d: any) => {
-        if (d.depth !== 0) {
-          const subTitle = d.data.name.substring(11)
-          if (subTitle.length > 10)
-            return `${subTitle.substring(0, 10)}...`
-
-          return subTitle
-        }
-      })
-      .style('font-size', () => 14)
-      .style('font-family', '黑体')
-      .style('font-weight', 'bold')
-
-    // 控股比例
-    node2Enter!
-      .append('text')
-      .attr('class', 'percent')
-      .attr('x', () => {
-        return 12
-      })
-      .attr('y', () => {
-        return 55
-      })
-      .text((d: any) => {
-        if (d.depth !== 0)
-          return d.data.percent
-      })
-      .attr('fill', '#000000')
-      .style('font-family', '黑体')
-      .style('font-size', () => 14)
-    return { node2Enter, node2 }
   }
 
   private childrenNodeUpdating(node1: d3.Selection<d3.BaseType, unknown, SVGGElement, undefined> | undefined, node1Enter: d3.Selection<SVGGElement, unknown, SVGGElement, undefined> | undefined, myTransition: d3.Transition<SVGSVGElement, undefined, null, undefined> | undefined, source: { x0: any; y0: any; x?: any; y?: any } | undefined, link1: d3.Selection<d3.BaseType, unknown, SVGGElement, undefined> | undefined, link1Enter: d3.Selection<SVGPathElement, unknown, SVGGElement, undefined> | undefined) {
@@ -739,6 +523,7 @@ export const mockData = {
   id: 'abc1005',
   // 根节点名称
   name: '山东吠舍科技有限责任公司',
+  secretary: '秘书',
   // 子节点列表
   children: [
     {
@@ -760,11 +545,13 @@ export const mockData = {
       id: 'abc1009',
       name: '山东第四首陀罗科技发展有限公司',
       percent: '100%',
+      secretary: '秘书',
       children: [
         {
           id: 'abc1010',
           name: '山东第一达利特瑞利分析仪器有限公司',
           percent: '100%',
+          secretary: '秘书',
           children: [
             {
               id: 'abc1011',

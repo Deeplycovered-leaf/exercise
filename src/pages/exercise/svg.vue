@@ -4,7 +4,7 @@ import { OrganizationChart, mockData } from '~/composables'
 onMounted(() => {
   // eslint-disable-next-line no-new
   new OrganizationChart({
-    el: '#app',
+    el: '#chart-container',
     originTreeData: mockData,
     // 节点点击事件
     nodeClickEvent(e, d) {
@@ -30,7 +30,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div id="chart-container" />
+  <div id="chart-container" class="w-screen h-90vh" />
 </template>
 
 <style scoped>
